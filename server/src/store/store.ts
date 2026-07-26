@@ -25,6 +25,11 @@ export class Store extends EventEmitter {
   private ring: AgentEvent[] = [];
   private sessions = new Map<string, SessionState>();
 
+  // Last-seen cumulative metric values per session (Claude Code emits
+  // cost.usage / token.usage as monotonic cumulative sums). Kept separate from
+  // `sessions` so day-counter deltas survive card eviction (session_end).
+  private metricAgg = new Map<string, { cost: number; tokens: Record<string, number> }>();
+
   // Running counters (survive ring-buffer eviction), reset at local midnight.
   private dayStart = startOfLocalDay();
   private costTodayUsd = 0;
@@ -45,8 +50,13 @@ export class Store extends EventEmitter {
     this.ring.push(event);
     if (this.ring.length > config.ringSize) this.ring.shift();
 
-    this.applyToCounters(event);
-    const changed = this.applyToSession(event);
+    let changed: boolean;
+    if (event.kind === 'metric') {
+      changed = this.applyMetric(event);
+    } else {
+      this.applyToCounters(event);
+      changed = this.applyToSession(event);
+    }
 
     this.emit('event', event);
     if (changed) this.emit('sessions', this.getSessions(), this.getAggregate());
@@ -82,6 +92,61 @@ export class Store extends EventEmitter {
     }
   }
 
+  /**
+   * Claude Code emits cost/tokens as cumulative (monotonic) sum metrics, tagged
+   * with session.id. We track the last-seen cumulative per session and add the
+   * *delta* to day counters (correct across midnight + card eviction), while the
+   * session card shows the latest cumulative session total.
+   * Returns true if anything visible changed.
+   */
+  private applyMetric(e: AgentEvent): boolean {
+    const name = e.metricName;
+    const value = e.metricValue;
+    // session.count / active_time.total carry no counter data we accumulate.
+    if (!name || value === undefined || (name !== 'claude_code.cost.usage' && name !== 'claude_code.token.usage')) {
+      // Still enrich an existing session's identity/liveness from the metric.
+      const existing = e.sessionId ? this.sessions.get(e.sessionId) : undefined;
+      if (existing) {
+        existing.lastEventAt = e.ts;
+        if (e.teamId) existing.teamId = e.teamId;
+        if (e.userEmail) existing.userEmail = e.userEmail;
+        return true;
+      }
+      return false;
+    }
+    if (!e.sessionId) return false;
+
+    const agg = this.metricAgg.get(e.sessionId) ?? { cost: 0, tokens: {} };
+    let changed = false;
+
+    if (name === 'claude_code.cost.usage') {
+      const delta = Math.max(0, value - agg.cost);
+      agg.cost = value;
+      this.costTodayUsd += delta;
+      changed = true;
+    } else {
+      const type = e.tokenType ?? 'other';
+      const prev = agg.tokens[type] ?? 0;
+      const delta = Math.max(0, value - prev);
+      agg.tokens[type] = value;
+      if (type === 'output') this.tokensOutToday += delta;
+      else this.tokensInToday += delta; // input / cacheRead / cacheCreation / other
+      changed = true;
+    }
+    this.metricAgg.set(e.sessionId, agg);
+
+    // Reflect cumulative totals on the card, but never resurrect an ended one.
+    const s = this.sessions.get(e.sessionId);
+    if (s) {
+      s.lastEventAt = e.ts;
+      if (e.teamId) s.teamId = e.teamId;
+      if (e.userEmail) s.userEmail = e.userEmail;
+      s.sessionCostUsd = agg.cost;
+      s.sessionTokens = Object.values(agg.tokens).reduce((a, b) => a + b, 0);
+    }
+    return changed;
+  }
+
   // ---- session derivation ----
 
   private ensureSession(e: AgentEvent): SessionState | undefined {
@@ -93,6 +158,8 @@ export class Store extends EventEmitter {
         status: 'idle',
         turnTokens: 0,
         turnCostUsd: 0,
+        sessionTokens: 0,
+        sessionCostUsd: 0,
         promptCount: 0,
         lastEventAt: e.ts,
         startedAt: e.ts,
@@ -137,12 +204,17 @@ export class Store extends EventEmitter {
         this.startTurn(s, e.ts, e.promptId);
         return true;
 
-      case 'api_request':
-        if (e.inputTokens) s.turnTokens += e.inputTokens;
-        if (e.outputTokens) s.turnTokens += e.outputTokens;
-        if (e.costUsd) s.turnCostUsd += e.costUsd;
+      case 'api_request': {
+        const tok = (e.inputTokens ?? 0) + (e.outputTokens ?? 0);
+        s.turnTokens += tok;
+        s.sessionTokens += tok;
+        if (e.costUsd) {
+          s.turnCostUsd += e.costUsd;
+          s.sessionCostUsd += e.costUsd;
+        }
         if (s.status === 'idle') s.status = 'thinking';
         return true;
+      }
 
       case 'tool_result':
         // Tool finished; if not already flipped by a PostToolUse hook, reflect it.
@@ -230,8 +302,14 @@ export class Store extends EventEmitter {
   getAggregate(): Aggregate {
     const now = Date.now();
     const hourAgo = now - 3_600_000;
+    // Count prompts from whichever source is active: the OTel user_prompt log
+    // OR the prompt_submit hook. In practice only one fires per prompt for a
+    // given deployment (real Claude Code emits the hook, not the log), so this
+    // does not double-count.
     const promptsLastHour = this.ring.filter(
-      (e) => e.kind === 'user_prompt' && e.ts >= hourAgo,
+      (e) =>
+        e.ts >= hourAgo &&
+        (e.kind === 'user_prompt' || (e.kind === 'activity' && e.subtype === 'prompt_submit')),
     ).length;
     const activeSessions = this.getSessions().filter((s) => s.status !== 'idle').length;
     const recentErrors = this.ring

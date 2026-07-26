@@ -38,8 +38,8 @@ export function SessionCard({
 
       <div className="card-metrics">
         <span title="Current turn duration">⏱ {s.status === 'idle' ? '—' : since(s.turnStartedAt)}</span>
-        <span title="Tokens this turn">◇ {tokens(s.turnTokens)}</span>
-        <span title="Cost this turn">{usd(s.turnCostUsd)}</span>
+        <span title="Tokens this session">◇ {tokens(s.sessionTokens)}</span>
+        <span title="Cost this session">{usd(s.sessionCostUsd)}</span>
       </div>
 
       <div className="card-foot">

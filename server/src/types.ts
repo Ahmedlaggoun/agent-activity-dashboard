@@ -55,6 +55,7 @@ export interface AgentEvent {
   // metric events
   metricName?: string;
   metricValue?: number;
+  tokenType?: string; // token.usage: input | output | cacheRead | cacheCreation
 
   // mcp connection
   mcpServer?: string;
@@ -86,8 +87,11 @@ export interface SessionState {
   currentPromptId?: string;
 
   turnStartedAt?: number; // epoch ms of current turn
-  turnTokens: number; // input+output tokens this turn
-  turnCostUsd: number; // cost this turn
+  turnTokens: number; // input+output tokens this turn (from api_request logs, if any)
+  turnCostUsd: number; // cost this turn (from api_request logs, if any)
+
+  sessionTokens: number; // cumulative tokens this session (from token.usage metrics)
+  sessionCostUsd: number; // cumulative cost this session (from cost.usage metrics)
 
   promptCount: number; // prompts this session
   lastEventAt: number;

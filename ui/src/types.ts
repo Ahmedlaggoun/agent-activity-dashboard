@@ -58,6 +58,8 @@ export interface SessionState {
   turnStartedAt?: number;
   turnTokens: number;
   turnCostUsd: number;
+  sessionTokens: number;
+  sessionCostUsd: number;
   promptCount: number;
   lastEventAt: number;
   startedAt: number;

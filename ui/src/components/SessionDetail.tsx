@@ -78,8 +78,8 @@ export function SessionDetail({
           </div>
           <div className="drawer-summary-grid">
             <span>⏱ {session.status === 'idle' ? '—' : since(session.turnStartedAt)}</span>
-            <span>◇ {tokens(session.turnTokens)} tok</span>
-            <span>{usd(session.turnCostUsd)} turn</span>
+            <span>◇ {tokens(session.sessionTokens)} tok</span>
+            <span>{usd(session.sessionCostUsd)} session</span>
           </div>
         </div>
 

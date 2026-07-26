@@ -172,6 +172,8 @@ export function parseMetrics(body: unknown): AgentEvent[] {
             kind: 'metric',
             metricName: name,
             metricValue: value,
+            tokenType: str(attrs, 'type') ?? str(attrs, 'token_type'),
+            model: str(attrs, 'model'),
             ...id,
           });
         }
