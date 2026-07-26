@@ -4,3 +4,10 @@ dist/
 *.log
 .DS_Store
 *.tsbuildinfo
+
+# analytics: local config, frozen datasets, ledger, time log (data, not code)
+analytics/baseline/config.json
+analytics/baseline/out/*
+!analytics/baseline/out/.gitkeep
+analytics/timelog/timelog.csv
+server/data/*.jsonl

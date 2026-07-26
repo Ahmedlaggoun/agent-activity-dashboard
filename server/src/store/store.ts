@@ -123,6 +123,17 @@ export class Store extends EventEmitter {
       const delta = Math.max(0, value - agg.cost);
       agg.cost = value;
       this.costTodayUsd += delta;
+      if (delta > 0) {
+        const sess = this.sessions.get(e.sessionId);
+        this.emit('cost', {
+          ts: e.ts,
+          sessionId: e.sessionId,
+          ticket: sess?.ticket,
+          repo: sess?.repo,
+          teamId: e.teamId ?? sess?.teamId,
+          dUsd: +delta.toFixed(6),
+        });
+      }
       changed = true;
     } else {
       const type = e.tokenType ?? 'other';

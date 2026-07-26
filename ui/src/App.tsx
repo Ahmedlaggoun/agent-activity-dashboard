@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useDashboard } from './api/ws';
 import { AggregateBar } from './components/AggregateBar';
+import { DoraStrip } from './components/DoraStrip';
 import { SessionCard } from './components/SessionCard';
 import { SessionDetail } from './components/SessionDetail';
 import type { SessionState } from './types';
@@ -38,6 +39,7 @@ export default function App() {
       </header>
 
       <AggregateBar agg={aggregate} />
+      <DoraStrip />
 
       <main className="board">
         {sessions.length === 0 && (

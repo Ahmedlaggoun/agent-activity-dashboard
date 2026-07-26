@@ -1,4 +1,7 @@
 import { gunzipSync } from 'node:zlib';
+import { appendFile, readFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import { config } from './config.js';
@@ -10,6 +13,20 @@ import type { ActivitySubtype, AgentEvent } from './types.js';
 
 const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' }, bodyLimit: 16 * 1024 * 1024 });
 const store = new Store();
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+// Append-only cost ledger: joins tokens -> € per ticket, consumed by the
+// baseline/DORA collector to compute € per merged PR. Disable with COST_LEDGER=0.
+const LEDGER_PATH = resolve(__dirname, '../data/cost-ledger.jsonl');
+const DORA_PATH = resolve(__dirname, '../../analytics/baseline/out/latest-dora.json');
+if (process.env.COST_LEDGER !== '0') {
+  store.on('cost', (rec) => {
+    if (!rec.ticket) return; // no ticket -> can't attribute to a PR
+    appendFile(LEDGER_PATH, JSON.stringify(rec) + '\n').catch((err) =>
+      app.log.warn({ err: String(err) }, 'cost-ledger append failed'),
+    );
+  });
+}
 
 // --- CORS (local POC: allow the Vite dev origin) ---
 app.addHook('onRequest', async (req, reply) => {
@@ -124,6 +141,15 @@ app.get('/api/state', async () => ({
 app.get<{ Params: { promptId: string } }>('/api/prompt/:promptId', async (req) => ({
   events: store.getPromptEvents(req.params.promptId),
 }));
+// Latest DORA/cost metrics written by the baseline/collector run (if any).
+app.get('/api/dora', async (_req, reply) => {
+  try {
+    const raw = await readFile(DORA_PATH, 'utf8');
+    return JSON.parse(raw);
+  } catch {
+    return reply.code(404).send({ error: 'no metrics yet — run analytics/baseline/extract.mjs' });
+  }
+});
 
 app
   .listen({ port: config.port, host: config.host })
