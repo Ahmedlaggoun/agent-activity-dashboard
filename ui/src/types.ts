@@ -18,6 +18,7 @@ export interface AgentEvent {
   promptId?: string;
   sessionId?: string;
   userEmail?: string;
+  agent?: string;
   teamId?: string;
   department?: string;
   toolName?: string;
@@ -47,6 +48,7 @@ export interface SessionState {
   teamId?: string;
   department?: string;
   userEmail?: string;
+  agent?: string;
   repo?: string;
   branch?: string;
   ticket?: string;

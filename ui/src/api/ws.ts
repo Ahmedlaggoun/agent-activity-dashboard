@@ -2,7 +2,20 @@ import { useEffect, useRef, useState } from 'react';
 import type { AgentEvent, Aggregate, ServerMessage, SessionState } from '../types';
 
 const SERVER_URL = (import.meta.env.VITE_SERVER_URL as string) ?? 'http://localhost:4318';
-const WS_URL = SERVER_URL.replace(/^http/, 'ws') + '/live';
+
+// Viewer token (for a TLS+auth cloud deploy): pass ?token=… once; it's kept in
+// localStorage thereafter. Empty for open localhost dev.
+const urlToken = new URLSearchParams(location.search).get('token');
+if (urlToken) localStorage.setItem('aad_token', urlToken);
+const viewerToken = urlToken ?? localStorage.getItem('aad_token') ?? '';
+const tokenQ = viewerToken ? `?token=${encodeURIComponent(viewerToken)}` : '';
+
+/** Build an authenticated URL to the server for REST fetches. */
+export function apiUrl(path: string): string {
+  return SERVER_URL + path + tokenQ;
+}
+
+const WS_URL = SERVER_URL.replace(/^http/, 'ws') + '/live' + tokenQ;
 
 const MAX_EVENTS = 300;
 

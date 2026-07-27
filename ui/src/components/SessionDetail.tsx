@@ -59,7 +59,7 @@ export function SessionDetail({
           <div>
             <div className="drawer-title">{session.repo ?? session.sessionId.slice(0, 12)}</div>
             <div className="drawer-sub">
-              {session.userEmail ?? '—'} · {session.teamId ?? 'no stream'}
+              {session.agent ?? session.userEmail ?? '—'} · {session.teamId ?? 'no stream'}
               {session.ticket ? ` · ${session.ticket}` : ''}
             </div>
           </div>

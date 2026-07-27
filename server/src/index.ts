@@ -36,6 +36,27 @@ app.addHook('onRequest', async (req, reply) => {
   if (req.method === 'OPTIONS') reply.code(204).send();
 });
 
+// --- Token auth (enabled only when tokens are configured) ---
+const INGEST_ROUTES = new Set(['/v1/logs', '/v1/metrics', '/v1/traces', '/activity']);
+function presentedToken(req: { headers: Record<string, unknown>; url: string }): string | undefined {
+  const auth = req.headers['authorization'];
+  if (typeof auth === 'string' && auth.startsWith('Bearer ')) return auth.slice(7);
+  const hdr = req.headers['x-aad-token'];
+  if (typeof hdr === 'string') return hdr;
+  const q = req.url.split('?')[1];
+  if (q) return new URLSearchParams(q).get('token') ?? undefined;
+  return undefined;
+}
+app.addHook('onRequest', async (req, reply) => {
+  const path = req.url.split('?')[0];
+  const isIngest = INGEST_ROUTES.has(path);
+  const isViewer = path.startsWith('/api/') || path === '/live';
+  const required = isIngest ? config.ingestToken : isViewer ? config.viewerToken : undefined;
+  if (required && presentedToken(req) !== required) {
+    return reply.code(401).send({ error: 'unauthorized' });
+  }
+});
+
 // --- Body parser that tolerates gzip + non-JSON content-types from OTLP ---
 app.addContentTypeParser(
   ['application/json', 'application/x-protobuf', 'application/octet-stream', '*'],

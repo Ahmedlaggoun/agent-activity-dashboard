@@ -22,7 +22,7 @@ export function SessionCard({
           {statusLabel[s.status]}
           {s.status === 'tool' && s.currentTool ? `: ${s.currentTool}` : ''}
         </span>
-        <span className="card-actor">{s.userEmail ?? s.sessionId.slice(0, 8)}</span>
+        <span className="card-actor">{s.agent ?? s.userEmail ?? s.sessionId.slice(0, 8)}</span>
       </div>
 
       <div className="card-repo">

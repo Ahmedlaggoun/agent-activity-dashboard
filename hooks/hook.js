@@ -81,12 +81,15 @@ async function main() {
     tool_name: input.tool_name,
   };
 
+  const headers = { 'content-type': 'application/json' };
+  if (process.env.AAD_TOKEN) headers['authorization'] = `Bearer ${process.env.AAD_TOKEN}`;
+
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
     await fetch(`${DASHBOARD_URL}/activity`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers,
       body: JSON.stringify(payload),
       signal: ctrl.signal,
     });

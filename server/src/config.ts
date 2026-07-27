@@ -32,12 +32,25 @@ function num(name: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function bool(name: string, fallback: boolean): boolean {
+  const v = process.env[name];
+  if (v === undefined) return fallback;
+  return v !== '0' && v.toLowerCase() !== 'false';
+}
+
 export const config = {
   port: num('PORT', 4318),
   host: process.env.HOST ?? '0.0.0.0',
   ringSize: num('RING_SIZE', 500),
   idleMs: num('IDLE_MS', 45_000),
   sessionTtlMs: num('SESSION_TTL_MS', 30 * 60_000),
+  // Pseudonymize identities (default on). Off only for a single-user local run.
+  anonymize: bool('ANONYMIZE', true),
+  anonymizeSalt: process.env.ANONYMIZE_SALT ?? 'aad-fleet',
+  // Auth: when set, ingest routes require INGEST_TOKEN and viewer routes
+  // (/api, /live) require VIEWER_TOKEN. Unset = open (localhost dev).
+  ingestToken: process.env.INGEST_TOKEN,
+  viewerToken: process.env.VIEWER_TOKEN,
   jira: {
     baseUrl: process.env.JIRA_BASE_URL,
     email: process.env.JIRA_EMAIL,

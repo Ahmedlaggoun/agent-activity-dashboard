@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { SERVER_URL } from '../api/ws';
+import { apiUrl } from '../api/ws';
 
 interface Dora {
   metrics?: {
@@ -31,7 +31,7 @@ export function DoraStrip() {
 
   useEffect(() => {
     const load = () =>
-      fetch(`${SERVER_URL}/api/dora`)
+      fetch(apiUrl('/api/dora'))
         .then((r) => (r.ok ? r.json() : Promise.reject()))
         .then(setD)
         .catch(() => setAbsent(true));

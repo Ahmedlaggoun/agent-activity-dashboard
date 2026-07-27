@@ -6,6 +6,7 @@ import type {
   SessionStatus,
 } from '../types.js';
 import { config } from '../config.js';
+import { agentLabel } from '../identity.js';
 
 function startOfLocalDay(now = Date.now()): number {
   const d = new Date(now);
@@ -30,6 +31,12 @@ export class Store extends EventEmitter {
   // `sessions` so day-counter deltas survive card eviction (session_end).
   private metricAgg = new Map<string, { cost: number; tokens: Record<string, number> }>();
 
+  // Best-known agent label per session. Set once from an identity-bearing event
+  // (session_start carries the email) so later identity-less events (metrics,
+  // hooks) reuse the SAME person label instead of a weaker session-based one —
+  // this is what makes one person's multiple sessions share a pseudonym.
+  private agentBySession = new Map<string, string>();
+
   // Running counters (survive ring-buffer eviction), reset at local midnight.
   private dayStart = startOfLocalDay();
   private costTodayUsd = 0;
@@ -46,6 +53,19 @@ export class Store extends EventEmitter {
 
   ingest(event: AgentEvent): void {
     this.rolloverDayIfNeeded(event.ts);
+
+    // Pseudonymize identity at the ingest boundary. A person label (from the
+    // email) is authoritative and remembered per session; identity-less events
+    // reuse it so the same person keeps one label across all their sessions.
+    if (event.userEmail) {
+      event.agent = config.anonymize ? agentLabel(event.userEmail) : event.userEmail;
+      if (event.sessionId) this.agentBySession.set(event.sessionId, event.agent);
+      if (config.anonymize) event.userEmail = undefined;
+    } else if (event.sessionId) {
+      event.agent =
+        this.agentBySession.get(event.sessionId) ??
+        (config.anonymize ? agentLabel(undefined, event.sessionId) : undefined);
+    }
 
     this.ring.push(event);
     if (this.ring.length > config.ringSize) this.ring.shift();
@@ -109,7 +129,7 @@ export class Store extends EventEmitter {
       if (existing) {
         existing.lastEventAt = e.ts;
         if (e.teamId) existing.teamId = e.teamId;
-        if (e.userEmail) existing.userEmail = e.userEmail;
+        if (e.agent) existing.agent = e.agent;
         return true;
       }
       return false;
@@ -151,7 +171,7 @@ export class Store extends EventEmitter {
     if (s) {
       s.lastEventAt = e.ts;
       if (e.teamId) s.teamId = e.teamId;
-      if (e.userEmail) s.userEmail = e.userEmail;
+      if (e.agent) s.agent = e.agent;
       s.sessionCostUsd = agg.cost;
       s.sessionTokens = Object.values(agg.tokens).reduce((a, b) => a + b, 0);
     }
@@ -181,6 +201,7 @@ export class Store extends EventEmitter {
     if (e.teamId) s.teamId = e.teamId;
     if (e.department) s.department = e.department;
     if (e.userEmail) s.userEmail = e.userEmail;
+    if (e.agent) s.agent = e.agent;
     if (e.repo) s.repo = e.repo;
     if (e.branch) s.branch = e.branch;
     if (e.ticket) s.ticket = e.ticket;
@@ -282,6 +303,8 @@ export class Store extends EventEmitter {
     for (const [id, s] of this.sessions) {
       if (now - s.lastEventAt > config.sessionTtlMs) {
         this.sessions.delete(id);
+        this.agentBySession.delete(id);
+        this.metricAgg.delete(id);
         changed = true;
         continue;
       }

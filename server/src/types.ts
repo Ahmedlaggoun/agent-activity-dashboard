@@ -32,7 +32,8 @@ export interface AgentEvent {
   sessionId?: string;
 
   // identity / grouping
-  userEmail?: string;
+  userEmail?: string; // cleared when anonymize is on
+  agent?: string; // stable pseudonym (present always; = email when not anonymized)
   teamId?: string;
   department?: string;
   terminalType?: string;
@@ -76,6 +77,7 @@ export interface SessionState {
   teamId?: string;
   department?: string;
   userEmail?: string;
+  agent?: string; // stable pseudonym for directory/map grouping
   repo?: string;
   branch?: string;
   ticket?: string;
