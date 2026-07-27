@@ -6,9 +6,10 @@ import { SessionCard } from './components/SessionCard';
 import { SessionDetail } from './components/SessionDetail';
 import { Directory, type Selection } from './components/Directory';
 import { AgentMap } from './components/AgentMap';
+import { Trends } from './components/Trends';
 import type { SessionState } from './types';
 
-type View = 'board' | 'map';
+type View = 'board' | 'map' | 'trends';
 
 export default function App() {
   const { connected, sessions, aggregate, events } = useDashboard();
@@ -57,6 +58,9 @@ export default function App() {
             <button className={view === 'map' ? 'on' : ''} onClick={() => setView('map')}>
               Map
             </button>
+            <button className={view === 'trends' ? 'on' : ''} onClick={() => setView('trends')}>
+              Trends
+            </button>
           </div>
           <div className={`conn ${connected ? 'on' : 'off'}`}>
             <span className="dot" />
@@ -81,7 +85,9 @@ export default function App() {
             </div>
           )}
 
-          {view === 'map' ? (
+          {view === 'trends' ? (
+            <Trends />
+          ) : view === 'map' ? (
             <AgentMap sessions={filtered} onSelect={setSelectedId} />
           ) : filtered.length === 0 ? (
             <div className="empty">

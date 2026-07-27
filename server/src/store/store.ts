@@ -51,6 +51,18 @@ export class Store extends EventEmitter {
     setInterval(() => this.sweep(), 5_000).unref();
   }
 
+  /** Boot-time: restore per-session cumulative baselines from persistence. */
+  restoreCumulative(map: Map<string, { cost: number; tokens: Record<string, number> }>): void {
+    this.metricAgg = map;
+  }
+
+  /** Boot-time: seed today's running counters from persisted totals. */
+  hydrateToday(t: { costUsd: number; tokensIn: number; tokensOut: number }): void {
+    this.costTodayUsd = t.costUsd;
+    this.tokensInToday = t.tokensIn;
+    this.tokensOutToday = t.tokensOut;
+  }
+
   ingest(event: AgentEvent): void {
     this.rolloverDayIfNeeded(event.ts);
 
@@ -139,19 +151,22 @@ export class Store extends EventEmitter {
     const agg = this.metricAgg.get(e.sessionId) ?? { cost: 0, tokens: {} };
     let changed = false;
 
+    const sess = this.sessions.get(e.sessionId);
     if (name === 'claude_code.cost.usage') {
       const delta = Math.max(0, value - agg.cost);
       agg.cost = value;
       this.costTodayUsd += delta;
       if (delta > 0) {
-        const sess = this.sessions.get(e.sessionId);
-        this.emit('cost', {
+        this.emit('usage', {
           ts: e.ts,
           sessionId: e.sessionId,
+          agent: e.agent ?? sess?.agent,
+          teamId: e.teamId ?? sess?.teamId,
           ticket: sess?.ticket,
           repo: sess?.repo,
-          teamId: e.teamId ?? sess?.teamId,
           dUsd: +delta.toFixed(6),
+          dTokensIn: 0,
+          dTokensOut: 0,
         });
       }
       changed = true;
@@ -160,11 +175,27 @@ export class Store extends EventEmitter {
       const prev = agg.tokens[type] ?? 0;
       const delta = Math.max(0, value - prev);
       agg.tokens[type] = value;
-      if (type === 'output') this.tokensOutToday += delta;
-      else this.tokensInToday += delta; // input / cacheRead / cacheCreation / other
+      const dOut = type === 'output' ? delta : 0;
+      const dIn = type === 'output' ? 0 : delta; // input / cacheRead / cacheCreation / other
+      this.tokensOutToday += dOut;
+      this.tokensInToday += dIn;
+      if (delta > 0) {
+        this.emit('usage', {
+          ts: e.ts,
+          sessionId: e.sessionId,
+          agent: e.agent ?? sess?.agent,
+          teamId: e.teamId ?? sess?.teamId,
+          ticket: sess?.ticket,
+          dUsd: 0,
+          dTokensIn: dIn,
+          dTokensOut: dOut,
+        });
+      }
       changed = true;
     }
     this.metricAgg.set(e.sessionId, agg);
+    // Snapshot cumulative so restart deltas stay correct.
+    this.emit('cumulative', { sessionId: e.sessionId, cost: agg.cost, tokens: agg.tokens, ts: e.ts });
 
     // Reflect cumulative totals on the card, but never resurrect an ended one.
     const s = this.sessions.get(e.sessionId);

@@ -8,6 +8,7 @@ import { config } from './config.js';
 import { Store } from './store/store.js';
 import { parseLogs, parseMetrics } from './otlp/parse.js';
 import { registerWebSocket } from './ws.js';
+import { history } from './db.js';
 import { cachedTitle, isTicketKey, resolveTitle } from './jira.js';
 import type { ActivitySubtype, AgentEvent } from './types.js';
 
@@ -20,12 +21,23 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const LEDGER_PATH = resolve(__dirname, '../data/cost-ledger.jsonl');
 const DORA_PATH = resolve(__dirname, '../../analytics/baseline/out/latest-dora.json');
 if (process.env.COST_LEDGER !== '0') {
-  store.on('cost', (rec) => {
-    if (!rec.ticket) return; // no ticket -> can't attribute to a PR
-    appendFile(LEDGER_PATH, JSON.stringify(rec) + '\n').catch((err) =>
+  store.on('usage', (rec) => {
+    if (!rec.ticket || !rec.dUsd) return; // ledger joins cost -> PR by ticket
+    appendFile(LEDGER_PATH, JSON.stringify({ ts: rec.ts, sessionId: rec.sessionId, ticket: rec.ticket, repo: rec.repo, teamId: rec.teamId, dUsd: rec.dUsd }) + '\n').catch((err) =>
       app.log.warn({ err: String(err) }, 'cost-ledger append failed'),
     );
   });
+}
+
+// --- Persistence: history + trends (SQLite; degrades to memory-only) ---
+await history.init();
+if (history.enabled) {
+  store.restoreCumulative(history.loadCumulative());
+  store.hydrateToday(history.todayTotals());
+  store.on('event', (e) => history.recordEvent(e));
+  store.on('usage', (u) => history.recordUsage(u));
+  store.on('cumulative', (c) => history.recordCumulative(c.sessionId, c.cost, c.tokens, c.ts));
+  app.log.info('history persistence enabled');
 }
 
 // --- CORS (local POC: allow the Vite dev origin) ---
@@ -162,6 +174,15 @@ app.get('/api/state', async () => ({
 app.get<{ Params: { promptId: string } }>('/api/prompt/:promptId', async (req) => ({
   events: store.getPromptEvents(req.params.promptId),
 }));
+// Persisted history: daily trends + per-agent timeline (survive restarts).
+app.get<{ Querystring: { days?: string } }>('/api/trends', async (req) => {
+  const days = Math.min(90, Math.max(1, Number(req.query.days) || 14));
+  return history.trends(days);
+});
+app.get<{ Params: { agent: string } }>('/api/history/agent/:agent', async (req) =>
+  history.agentHistory(req.params.agent),
+);
+
 // Latest DORA/cost metrics written by the baseline/collector run (if any).
 app.get('/api/dora', async (_req, reply) => {
   try {

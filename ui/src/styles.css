@@ -394,6 +394,112 @@ body {
   }
 }
 
+/* ---- Trends ---- */
+.trends {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.trends-empty,
+.trends-empty-inline {
+  color: var(--text-mute);
+  font-size: 13.5px;
+  padding: 30px 4px;
+}
+.trends-empty-inline {
+  padding: 10px 0;
+}
+.trends-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.trends-tile {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px 16px;
+}
+.trends-tile-value {
+  font-size: 24px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+.trends-tile-value.accent {
+  color: var(--accent);
+}
+.trends-tile-label {
+  font-size: 12px;
+  color: var(--text-mute);
+  margin-top: 3px;
+}
+.trends-chart-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+  padding: 16px 18px;
+}
+.trends-chart-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+.trends-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.trends-bar {
+  fill: var(--accent);
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+.trends-bar:hover {
+  opacity: 1;
+}
+.trends-axis {
+  fill: var(--text-mute);
+  font-size: 10px;
+}
+.trends-stream-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 64px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+.trends-stream-name {
+  font-size: 13px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trends-stream-bar {
+  height: 8px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.trends-stream-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--violet));
+  border-radius: 999px;
+}
+.trends-stream-val {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text);
+}
+@media (max-width: 720px) {
+  .trends-tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* ---- Aggregate bar ---- */
 .aggbar {
   display: grid;

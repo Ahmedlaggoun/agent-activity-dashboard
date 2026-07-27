@@ -11,3 +11,6 @@ analytics/baseline/out/*
 !analytics/baseline/out/.gitkeep
 analytics/timelog/timelog.csv
 server/data/*.jsonl
+server/data/*.db
+server/data/*.db-wal
+server/data/*.db-shm
