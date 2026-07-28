@@ -16,6 +16,7 @@
     "dev:ui": "npm run dev --workspace ui",
     "build": "npm run build --workspace server && npm run build --workspace ui",
     "test": "npm run test --workspace server",
+    "demo:seed": "node scripts/seed-demo.mjs",
     "start": "npm run start --workspace server"
   }
 }

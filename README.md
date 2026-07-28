@@ -55,6 +55,28 @@ Then install the hooks (see [`hooks/README.md`](./hooks/README.md)) so the
 dashboard gets ticket/branch context and precise live tool status. The same
 guide includes user-level Codex OTel and hook setup.
 
+## Local Docker
+
+The complete POC runs behind one same-origin proxy on the local-only default
+port `18418`:
+
+```bash
+docker compose up --build -d
+npm run demo:seed
+open http://127.0.0.1:18418
+```
+
+Override the port when necessary with `AAD_PORT=19000 docker compose up -d`.
+SQLite history and the cost ledger live in the `aad-data` named volume and
+survive container restarts. `docker compose down` stops the stack without
+deleting that data; adding `--volumes` deletes it.
+
+`npm run demo:seed` adds one Claude and one Codex session to the live board for
+local evaluation. It sends only synthetic metadata.
+
+For local agent ingestion, use `http://127.0.0.1:18418` as `AAD_URL` and the
+OTLP base URL.
+
 ## Verifying the pipeline
 
 Before wiring the real endpoint, confirm Claude Code emits telemetry at all:
@@ -92,4 +114,5 @@ You should see `claude_code.session.count` at session start and
 | `server/` | Fastify OTLP ingest + live store + SQLite history + WebSocket |
 | `ui/` | React + Vite live dashboard |
 | `hooks/` | Claude Code/Codex hook bridge and setup snippets |
+| `Dockerfile`, `compose.yaml` | local two-container deployment on port 18418 |
 | `otel-env.sh` | the `CLAUDE_CODE_ENABLE_TELEMETRY` export block |

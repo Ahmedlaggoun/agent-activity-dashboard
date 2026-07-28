@@ -50,4 +50,3 @@ The deployment is complete when:
 6. the browser shows both providers and provider filtering works;
 7. SQLite history survives a Compose restart;
 8. the stack remains running for local testing.
-

@@ -1,0 +1,11 @@
+.git
+.playwright-cli
+node_modules
+**/node_modules
+dist
+**/dist
+server/data
+analytics/baseline/out
+.env
+*.log
+*.tsbuildinfo

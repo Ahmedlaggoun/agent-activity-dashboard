@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AgentEvent, Aggregate, ServerMessage, SessionState } from '../types';
 
-const SERVER_URL = (import.meta.env.VITE_SERVER_URL as string) ?? 'http://localhost:4318';
+const configuredServerUrl = (import.meta.env.VITE_SERVER_URL as string | undefined)?.replace(/\/$/, '');
+const SERVER_URL = configuredServerUrl || (import.meta.env.DEV ? 'http://localhost:4318' : location.origin);
 
 // Viewer token (for a TLS+auth cloud deploy): pass ?token=… once; it's kept in
 // localStorage thereafter. Empty for open localhost dev.

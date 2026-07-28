@@ -1,0 +1,32 @@
+name: agent-activity-dashboard
+
+services:
+  server:
+    image: agent-activity-dashboard-server:local
+    build:
+      context: .
+      target: server
+    environment:
+      ANONYMIZE: ${ANONYMIZE:-1}
+      ANONYMIZE_SALT: ${ANONYMIZE_SALT:-aad-local-docker}
+      RETENTION_DAYS: ${RETENTION_DAYS:-60}
+      SESSION_TTL_MS: ${SESSION_TTL_MS:-1800000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    restart: unless-stopped
+    volumes:
+      - aad-data:/app/server/data
+
+  dashboard:
+    image: agent-activity-dashboard-ui:local
+    build:
+      context: .
+      target: dashboard
+    depends_on:
+      server:
+        condition: service_healthy
+    ports:
+      - "${AAD_HOST:-127.0.0.1}:${AAD_PORT:-18418}:8080"
+    restart: unless-stopped
+
+volumes:
+  aad-data:
