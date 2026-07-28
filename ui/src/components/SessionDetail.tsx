@@ -81,9 +81,15 @@ export function SessionDetail({
             </span>
           </div>
           <div className="drawer-summary-grid">
-            <span>⏱ {session.status === 'idle' ? '—' : since(session.turnStartedAt)}</span>
-            <span>◇ {tokens(session.sessionTokens)} tok</span>
-            <span>{usd(session.sessionCostUsd)} session</span>
+            <span className="metric-time" title="Active turn">
+              ⏱ {session.status === 'idle' ? '—' : since(session.turnStartedAt)}
+            </span>
+            <span className="metric-tokens" title="AI tokens in this session">
+              ◇ {tokens(session.sessionTokens)} tokens
+            </span>
+            <span className="metric-cost" title="Estimated AI usage cost for this session">
+              {usd(session.sessionCostUsd)} session
+            </span>
           </div>
         </div>
 

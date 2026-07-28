@@ -6,6 +6,7 @@ import { SessionCard } from './components/SessionCard';
 import { SessionDetail } from './components/SessionDetail';
 import { Directory, type Selection } from './components/Directory';
 import { AgentMap } from './components/AgentMap';
+import { MetricLegend } from './components/MetricLegend';
 import { Trends } from './components/Trends';
 import type { AgentProvider, SessionState } from './types';
 
@@ -94,6 +95,8 @@ export default function App() {
         <Directory sessions={providerSessions} selection={selection} onSelect={setSelection} />
 
         <main className="main">
+          {view === 'board' && <MetricLegend />}
+
           {(selection.stream || selection.agent) && (
             <div className="scopebar">
               Showing <strong>{scopeLabel}</strong>

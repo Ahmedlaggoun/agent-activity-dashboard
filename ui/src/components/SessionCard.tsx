@@ -41,14 +41,24 @@ export function SessionCard({
       )}
 
       <div className="card-metrics">
-        <span title="Current turn duration">⏱ {s.status === 'idle' ? '—' : since(s.turnStartedAt)}</span>
-        <span title="Tokens this session">◇ {tokens(s.sessionTokens)}</span>
-        <span title="Cost this session">{usd(s.sessionCostUsd)}</span>
+        <span className="metric-time" title="Active turn: time since the current prompt started">
+          ⏱ {s.status === 'idle' ? '—' : since(s.turnStartedAt)}
+        </span>
+        <span className="metric-tokens" title="AI tokens: text units processed in this session">
+          ◇ {tokens(s.sessionTokens)}
+        </span>
+        <span className="metric-cost" title="Estimated AI usage cost for this session">
+          {usd(s.sessionCostUsd)}
+        </span>
       </div>
 
       <div className="card-foot">
-        <span>{s.promptCount} prompt{s.promptCount === 1 ? '' : 's'}</span>
-        <span className="muted">{ago(s.lastEventAt)}</span>
+        <span className="metric-prompts" title="Prompts submitted in this session">
+          {s.promptCount} prompt{s.promptCount === 1 ? '' : 's'}
+        </span>
+        <span className="metric-activity" title="Time since the latest agent event">
+          {ago(s.lastEventAt)}
+        </span>
       </div>
     </button>
   );

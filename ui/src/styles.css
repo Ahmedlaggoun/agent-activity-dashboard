@@ -11,6 +11,7 @@
   --accent: #5b8cff;
   --accent-soft: #1e2a49;
   --green: #3fd08a;
+  --cyan: #47cfe8;
   --amber: #f2b955;
   --red: #f2607a;
   --violet: #9b7bff;
@@ -582,8 +583,23 @@ body {
   background: linear-gradient(180deg, rgba(155, 123, 255, 0.06), transparent);
 }
 .dora-empty {
-  color: var(--text-mute);
+  display: grid;
+  grid-template-columns: minmax(190px, 0.32fr) 1fr;
+  gap: 18px;
+  align-items: start;
+}
+.dora-empty-title {
+  color: var(--text);
   font-size: 13px;
+  font-weight: 700;
+}
+.dora-empty-body {
+  color: var(--text-mute);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.dora-empty-body strong {
+  color: var(--text-dim);
 }
 .dora-title {
   font-size: 12px;
@@ -629,6 +645,73 @@ body {
   .dora-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  .dora-empty {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}
+
+/* ---- Metric guide ---- */
+.metric-guide {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+  padding: 12px 14px;
+  margin-bottom: 22px;
+}
+.metric-guide-title {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+.metric-guide-items {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(115px, 1fr));
+  gap: 12px;
+}
+.metric-guide-item {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.metric-guide-symbol {
+  flex: 0 0 20px;
+  font-size: 14px;
+  font-weight: 750;
+  text-align: center;
+}
+.metric-guide-item strong,
+.metric-guide-item small {
+  display: block;
+}
+.metric-guide-item strong {
+  color: currentColor;
+  font-size: 11.5px;
+  line-height: 1.3;
+}
+.metric-guide-item small {
+  color: var(--text-mute);
+  font-size: 10.5px;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+.metric-time {
+  color: var(--amber);
+}
+.metric-tokens {
+  color: var(--cyan);
+}
+.metric-cost {
+  color: var(--green);
+}
+.metric-prompts {
+  color: var(--accent);
+}
+.metric-activity {
+  color: var(--text-dim);
 }
 
 /* ---- Streams / cards ---- */
@@ -806,12 +889,23 @@ body {
   display: flex;
   justify-content: space-between;
   font-size: 11.5px;
-  color: var(--text-mute);
   border-top: 1px solid var(--border-soft);
   padding-top: 8px;
 }
 .muted {
   color: var(--text-mute);
+}
+
+@media (max-width: 980px) {
+  .metric-guide-items {
+    grid-template-columns: repeat(3, minmax(130px, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .metric-guide-items {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
 }
 
 /* ---- Empty state ---- */

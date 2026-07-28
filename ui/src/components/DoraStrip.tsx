@@ -43,7 +43,13 @@ export function DoraStrip() {
   if (absent && !d)
     return (
       <div className="dora dora-empty">
-        DORA &amp; €/PR — run <code>analytics/baseline/extract.mjs</code> to populate the baseline.
+        <div className="dora-empty-title">Delivery baseline not connected</div>
+        <div className="dora-empty-body">
+          <strong>DORA</strong> measures delivery speed and stability: deployment frequency,
+          lead time, change failure rate, and recovery time. <strong>Cost per merged PR</strong>{' '}
+          estimates AI usage cost for each delivered pull request. Connect the GitHub and Jira
+          baseline to show these comparisons.
+        </div>
       </div>
     );
   if (!d?.metrics?.dora) return null;
@@ -63,7 +69,7 @@ export function DoraStrip() {
         <Cell label="Deploys / week" value={m.deploymentFrequency?.perWeek != null ? String(m.deploymentFrequency.perWeek) : '—'} />
         <Cell label="Change failure rate" value={cfr != null ? `${Math.round(cfr * 100)}%` : '—'} />
         <Cell label="Time to restore" value={m.timeToRestore?.medianHours != null ? `${m.timeToRestore.medianHours}h` : '—'} sub="median" />
-        <Cell label="€ / merged PR" value={d.metrics.cost?.perMergedPrUsd != null ? `$${d.metrics.cost.perMergedPrUsd}` : '—'} sub="tokens" />
+        <Cell label="AI cost / merged PR" value={d.metrics.cost?.perMergedPrUsd != null ? `$${d.metrics.cost.perMergedPrUsd}` : '—'} sub="estimated delivery cost" />
       </div>
     </div>
   );
