@@ -41,6 +41,7 @@ function bool(name: string, fallback: boolean): boolean {
 export const config = {
   port: num('PORT', 4318),
   host: process.env.HOST ?? '0.0.0.0',
+  dataDir: process.env.DATA_DIR ?? resolve(__dirname, '../data'),
   ringSize: num('RING_SIZE', 500),
   idleMs: num('IDLE_MS', 45_000),
   sessionTtlMs: num('SESSION_TTL_MS', 30 * 60_000),
@@ -52,6 +53,16 @@ export const config = {
   // (/api, /live) require VIEWER_TOKEN. Unset = open (localhost dev).
   ingestToken: process.env.INGEST_TOKEN,
   viewerToken: process.env.VIEWER_TOKEN,
+  credentialEncryptionKey: process.env.CREDENTIAL_ENCRYPTION_KEY,
+  delivery: {
+    settingsPath: process.env.DELIVERY_SETTINGS_PATH ?? resolve(process.env.DATA_DIR ?? resolve(__dirname, '../data'), 'delivery/settings.json'),
+    secretsPath: process.env.DELIVERY_SECRETS_PATH ?? resolve(process.env.DATA_DIR ?? resolve(__dirname, '../data'), 'delivery/secrets.json'),
+    runsPath: process.env.DELIVERY_RUNS_PATH ?? resolve(process.env.DATA_DIR ?? resolve(__dirname, '../data'), 'delivery/runs.json'),
+    artifactsDir: process.env.DELIVERY_ARTIFACTS_DIR ?? resolve(process.env.DATA_DIR ?? resolve(__dirname, '../data'), 'delivery/artifacts'),
+    latestDoraPath: process.env.DELIVERY_LATEST_DORA_PATH ?? resolve(process.env.DATA_DIR ?? resolve(__dirname, '../data'), 'delivery/latest-success/latest-dora.json'),
+    extractorPath: process.env.DELIVERY_EXTRACTOR_PATH ?? resolve(__dirname, '../../analytics/baseline/extract.mjs'),
+    defaultGithubApiBaseUrl: process.env.DELIVERY_GITHUB_API_BASE_URL ?? 'https://api.github.com',
+  },
   jira: {
     baseUrl: process.env.JIRA_BASE_URL,
     email: process.env.JIRA_EMAIL,

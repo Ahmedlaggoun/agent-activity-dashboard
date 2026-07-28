@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useDashboard } from './api/ws';
 import { AggregateBar } from './components/AggregateBar';
+import { DeliveryDataPanel } from './components/DeliveryDataPanel';
 import { DoraStrip } from './components/DoraStrip';
 import { SessionCard } from './components/SessionCard';
 import { SessionDetail } from './components/SessionDetail';
@@ -16,6 +17,7 @@ type ProviderFilter = 'all' | AgentProvider;
 export default function App() {
   const { connected, sessions, aggregate, events } = useDashboard();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [deliveryPanelOpen, setDeliveryPanelOpen] = useState(false);
   const [view, setView] = useState<View>('board');
   const [provider, setProvider] = useState<ProviderFilter>('all');
   const [selection, setSelection] = useState<Selection>({ stream: null, agent: null });
@@ -89,7 +91,7 @@ export default function App() {
       </header>
 
       <AggregateBar agg={aggregate} />
-      <DoraStrip />
+      <DoraStrip onOpenDeliveryData={() => setDeliveryPanelOpen(true)} />
 
       <div className="shell">
         <Directory sessions={providerSessions} selection={selection} onSelect={setSelection} />
@@ -142,6 +144,7 @@ export default function App() {
       {selected && (
         <SessionDetail session={selected} events={events} onClose={() => setSelectedId(null)} />
       )}
+      <DeliveryDataPanel open={deliveryPanelOpen} onClose={() => setDeliveryPanelOpen(false)} />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiUrl } from '../api/ws';
+import { DORA_REFRESH_EVENT } from './DeliveryDataPanel';
 
 interface Dora {
   metrics?: {
@@ -25,7 +26,7 @@ function Cell({ label, value, sub }: { label: string; value: string; sub?: strin
 }
 
 /** Reads /api/dora; renders the 4 DORA metrics + €/PR when a collector run exists. */
-export function DoraStrip() {
+export function DoraStrip({ onOpenDeliveryData }: { onOpenDeliveryData: () => void }) {
   const [d, setD] = useState<Dora | null>(null);
   const [absent, setAbsent] = useState(false);
 
@@ -33,22 +34,34 @@ export function DoraStrip() {
     const load = () =>
       fetch(apiUrl('/api/dora'))
         .then((r) => (r.ok ? r.json() : Promise.reject()))
-        .then(setD)
+        .then((payload) => {
+          setD(payload);
+          setAbsent(false);
+        })
         .catch(() => setAbsent(true));
     load();
     const t = setInterval(load, 60_000);
-    return () => clearInterval(t);
+    window.addEventListener(DORA_REFRESH_EVENT, load);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener(DORA_REFRESH_EVENT, load);
+    };
   }, []);
 
   if (absent && !d)
     return (
       <div className="dora dora-empty">
-        <div className="dora-empty-title">Delivery baseline not connected</div>
+        <div>
+          <div className="dora-empty-title">Delivery baseline not connected</div>
+          <button type="button" className="dora-manage-button" onClick={onOpenDeliveryData}>
+            Connect delivery data
+          </button>
+        </div>
         <div className="dora-empty-body">
           <strong>DORA</strong> measures delivery speed and stability: deployment frequency,
           lead time, change failure rate, and recovery time. <strong>Cost per merged PR</strong>{' '}
           estimates AI usage cost for each delivered pull request. Connect the GitHub and Jira
-          baseline to show these comparisons.
+          baseline, pick the baseline date, and import the history to show these comparisons.
         </div>
       </div>
     );
@@ -59,10 +72,15 @@ export function DoraStrip() {
   return (
     <div className="dora">
       <div className="dora-title">
-        DORA &amp; cost
-        <span className="dora-since">
-          {d.manifest?.window?.since ? `since ${d.manifest.window.since.slice(0, 10)}` : ''}
+        <span>
+          DORA &amp; cost
+          <span className="dora-since">
+            {d.manifest?.window?.since ? `since ${d.manifest.window.since.slice(0, 10)}` : ''}
+          </span>
         </span>
+        <button type="button" className="dora-manage-button" onClick={onOpenDeliveryData}>
+          Delivery data
+        </button>
       </div>
       <div className="dora-grid">
         <Cell label="Lead time to prod" value={m.leadTimeToProd?.medianDays != null ? `${m.leadTimeToProd.medianDays}d` : '—'} sub="median" />

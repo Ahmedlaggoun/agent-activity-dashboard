@@ -77,6 +77,23 @@ local evaluation. It sends only synthetic metadata.
 For local agent ingestion, use `http://127.0.0.1:18418` as `AAD_URL` and the
 OTLP base URL.
 
+### Connect GitHub and Jira delivery data
+
+Open the dashboard and select **Connect delivery data** in the delivery
+baseline panel. From there you can:
+
+- enter read-only GitHub.com and Atlassian Cloud credentials;
+- test both connections before saving;
+- choose repositories, Jira projects, anonymization, and a history start date;
+- run the import and follow its progress; and
+- review dated successful and failed imports.
+
+Credentials are encrypted before they are written to the `aad-data` Docker
+volume. Set a unique `CREDENTIAL_ENCRYPTION_KEY` in the local `.env` file; if
+that key is lost or changed, previously saved credentials cannot be decrypted.
+Tokens and the anonymization salt are never returned by the API or written to
+run history.
+
 ## Verifying the pipeline
 
 Before wiring the real endpoint, confirm Claude Code emits telemetry at all:
