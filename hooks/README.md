@@ -1,11 +1,12 @@
-# Hooks — local context bridge
+# Hooks — Claude Code and Codex context bridge
 
 Claude Code's telemetry doesn't know the **ticket**, the **branch**, or which
 tool is running **right now** (OTel only emits `tool_result` *after* a tool
 finishes). These hooks fill that gap: they POST structural context to the
 dashboard's `/activity` endpoint on each lifecycle event.
 
-`hook.js` handles all six events and derives the type from `hook_event_name`:
+`hook.js` handles all six events for both providers and derives the type from
+`hook_event_name`:
 
 | Event | Effect on the session card |
 |---|---|
@@ -18,12 +19,12 @@ dashboard's `/activity` endpoint on each lifecycle event.
 
 ## Privacy
 
-`hook.js` forwards **only** `session_id`, `repo`, `branch`, `ticket`, `cwd`,
-`user`, `team.id`/`department` (from `OTEL_RESOURCE_ATTRIBUTES`), and — on tool
-events — the `tool_name`. It never reads or sends the prompt text or tool
-input/output. It always exits 0, so it can never block a Claude Code action.
+`hook.js` forwards **only** `session_id`, provider/client, repo, branch, ticket,
+cwd, an optional custom alias, team/department, and a sanitized tool summary.
+It never reads or sends prompt text, raw commands, or tool input/output. It
+always exits 0, so it cannot block an agent action.
 
-## Install
+## Claude Code install
 
 1. Make sure the dashboard server is running (`npm run dev:server`).
 2. Merge [`settings.snippet.json`](./settings.snippet.json) into your Claude Code
@@ -31,12 +32,32 @@ input/output. It always exits 0, so it can never block a Claude Code action.
    `.claude/settings.json`). Adjust the absolute path if you cloned elsewhere.
 3. Restart the `claude` session (hooks load at startup).
 
+## Codex install
+
+Codex telemetry settings must be user-level; project-local OTel configuration
+is ignored. For a local POC:
+
+1. Merge [`codex-config.snippet.toml`](./codex-config.snippet.toml) into
+   `~/.codex/config.toml`. Keep `log_user_prompt = false`.
+2. Copy `hook.js` to a stable machine path.
+3. Merge [`codex-hooks.snippet.json`](./codex-hooks.snippet.json) into
+   `~/.codex/hooks.json`, replace the placeholder script path, and keep
+   `AAD_PROVIDER=codex` in each command.
+4. Export `AAD_URL=http://localhost:4318`; optionally set `AAD_CLIENT` to
+   `cli`, `desktop`, or `vscode`, and `AAD_USER` to a chosen display alias.
+5. Start a new Codex session and review/trust the hooks with `/hooks`.
+
+Codex batches OTel export, so hooks provide the immediate live state while OTel
+adds structured API, approval, result, model, and usage events.
+
 ## Config (env, optional)
 
 | Var | Default | Meaning |
 |---|---|---|
 | `AAD_URL` | `http://localhost:4318` | dashboard base URL |
-| `AAD_USER` | `git config user.email` → `$USER` | actor label |
+| `AAD_USER` | generated pseudonym | optional custom display alias |
+| `AAD_PROVIDER` | `claude` | set to `codex` for Codex hooks |
+| `AAD_CLIENT` | inferred or `unknown` | `cli`, `desktop`, or `vscode` |
 | `OTEL_RESOURCE_ATTRIBUTES` | — | `team.id` / `department` reused as the stream tag |
 
 ## Ticket detection

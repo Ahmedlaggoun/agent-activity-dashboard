@@ -97,9 +97,8 @@ the browser thereafter. Without a valid token, `/api/*` and `/live` return 401.
 - **Auth is app-enforced**, so even if the port were exposed, ingest/viewer routes
   reject tokenless requests. Keep the two tokens distinct and rotate by editing
   `/etc/aad.env` + `systemctl restart aad`.
-- **Retention:** the POC keeps only the in-memory ring buffer + the cost ledger.
-  For persistent history (DORA/cost trends), add a store with the 30-day cap — the
-  next iteration.
+- **Retention:** normalized detailed history is stored in SQLite and pruned
+  after 60 rolling days by default (`RETENTION_DAYS=60`).
 - **RGPD:** anonymization is on (`ANONYMIZE=1`) — no identities stored or shown. If
   you ever turn it off to show names, the CSE information-consultation + registry
   entry from the brief apply first.

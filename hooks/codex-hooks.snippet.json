@@ -1,0 +1,73 @@
+{
+  "description": "Agent Activity Dashboard — privacy-safe Codex lifecycle events",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AAD_PROVIDER=codex node /absolute/path/to/agent-activity-dashboard/hooks/hook.js",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AAD_PROVIDER=codex node /absolute/path/to/agent-activity-dashboard/hooks/hook.js",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AAD_PROVIDER=codex node /absolute/path/to/agent-activity-dashboard/hooks/hook.js",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AAD_PROVIDER=codex node /absolute/path/to/agent-activity-dashboard/hooks/hook.js",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AAD_PROVIDER=codex node /absolute/path/to/agent-activity-dashboard/hooks/hook.js",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AAD_PROVIDER=codex node /absolute/path/to/agent-activity-dashboard/hooks/hook.js",
+            "timeout": 3
+          }
+        ]
+      }
+    ]
+  }
+}

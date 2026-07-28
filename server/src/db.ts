@@ -1,16 +1,16 @@
 // SQLite-backed history for trends + per-agent timelines that survive restarts.
 // Privacy-safe: stores only normalized, pseudonymized events (no email, no
-// prompt/tool content). Retention capped at RETENTION_DAYS (default 30).
+// prompt/tool content). Retention capped at RETENTION_DAYS (default 60).
 //
 // Degrades gracefully: if better-sqlite3 can't load, everything becomes a no-op
 // and the dashboard runs memory-only (endpoints report enabled:false).
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdirSync } from 'node:fs';
-import type { AgentEvent } from './types.js';
+import type { AgentClient, AgentEvent, AgentProvider } from './types.js';
+import { config } from './config.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const RETENTION_DAYS = Number(process.env.RETENTION_DAYS ?? 30);
 const DB_PATH = process.env.DB_PATH ?? resolve(__dirname, '../data/history.db');
 
 export interface UsageDelta {
@@ -19,6 +19,8 @@ export interface UsageDelta {
   agent?: string;
   teamId?: string;
   ticket?: string;
+  provider?: AgentProvider;
+  client?: AgentClient;
   dUsd: number;
   dTokensIn: number;
   dTokensOut: number;
@@ -50,6 +52,7 @@ class History {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           ts INTEGER NOT NULL, day TEXT NOT NULL,
           kind TEXT, subtype TEXT,
+          provider TEXT NOT NULL DEFAULT 'claude', client TEXT,
           session_id TEXT, agent TEXT, team_id TEXT,
           repo TEXT, branch TEXT, ticket TEXT,
           tool_name TEXT, success INTEGER, decision TEXT,
@@ -62,6 +65,7 @@ class History {
         CREATE TABLE IF NOT EXISTS usage (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           ts INTEGER NOT NULL, day TEXT NOT NULL,
+          provider TEXT NOT NULL DEFAULT 'claude', client TEXT,
           session_id TEXT, agent TEXT, team_id TEXT, ticket TEXT,
           d_usd REAL, d_tokens_in INTEGER, d_tokens_out INTEGER
         );
@@ -75,12 +79,30 @@ class History {
           cost REAL, tokens_json TEXT, ts INTEGER
         );
       `);
+      const eventColumns = new Set(
+        (db.prepare('PRAGMA table_info(events)').all() as Array<{ name: string }>).map((column) => column.name),
+      );
+      if (!eventColumns.has('provider')) {
+        db.exec("ALTER TABLE events ADD COLUMN provider TEXT NOT NULL DEFAULT 'claude'");
+      }
+      if (!eventColumns.has('client')) {
+        db.exec('ALTER TABLE events ADD COLUMN client TEXT');
+      }
+      const usageColumns = new Set(
+        (db.prepare('PRAGMA table_info(usage)').all() as Array<{ name: string }>).map((column) => column.name),
+      );
+      if (!usageColumns.has('provider')) {
+        db.exec("ALTER TABLE usage ADD COLUMN provider TEXT NOT NULL DEFAULT 'claude'");
+      }
+      if (!usageColumns.has('client')) {
+        db.exec('ALTER TABLE usage ADD COLUMN client TEXT');
+      }
       this.insEvent = db.prepare(`INSERT INTO events
-        (ts,day,kind,subtype,session_id,agent,team_id,repo,branch,ticket,tool_name,success,decision,duration_ms,status_code)
-        VALUES (@ts,@day,@kind,@subtype,@session_id,@agent,@team_id,@repo,@branch,@ticket,@tool_name,@success,@decision,@duration_ms,@status_code)`);
+        (ts,day,kind,subtype,provider,client,session_id,agent,team_id,repo,branch,ticket,tool_name,success,decision,duration_ms,status_code)
+        VALUES (@ts,@day,@kind,@subtype,@provider,@client,@session_id,@agent,@team_id,@repo,@branch,@ticket,@tool_name,@success,@decision,@duration_ms,@status_code)`);
       this.insUsage = db.prepare(`INSERT INTO usage
-        (ts,day,session_id,agent,team_id,ticket,d_usd,d_tokens_in,d_tokens_out)
-        VALUES (@ts,@day,@session_id,@agent,@team_id,@ticket,@d_usd,@d_tokens_in,@d_tokens_out)`);
+        (ts,day,provider,client,session_id,agent,team_id,ticket,d_usd,d_tokens_in,d_tokens_out)
+        VALUES (@ts,@day,@provider,@client,@session_id,@agent,@team_id,@ticket,@d_usd,@d_tokens_in,@d_tokens_out)`);
       this.upsertCum = db.prepare(`INSERT INTO cumulative (session_id,cost,tokens_json,ts)
         VALUES (@session_id,@cost,@tokens_json,@ts)
         ON CONFLICT(session_id) DO UPDATE SET cost=@cost, tokens_json=@tokens_json, ts=@ts`);
@@ -100,6 +122,7 @@ class History {
     this.insEvent!.run({
       ts: e.ts, day: localDay(e.ts),
       kind: e.kind, subtype: e.subtype ?? null,
+      provider: e.provider, client: e.client ?? null,
       session_id: e.sessionId ?? null, agent: e.agent ?? null, team_id: e.teamId ?? null,
       repo: e.repo ?? null, branch: e.branch ?? null, ticket: e.ticket ?? null,
       tool_name: e.toolName ?? null, success: e.success == null ? null : e.success ? 1 : 0,
@@ -111,6 +134,7 @@ class History {
     if (!this.enabled) return;
     this.insUsage!.run({
       ts: u.ts, day: localDay(u.ts),
+      provider: u.provider ?? 'claude', client: u.client ?? null,
       session_id: u.sessionId ?? null, agent: u.agent ?? null, team_id: u.teamId ?? null,
       ticket: u.ticket ?? null, d_usd: u.dUsd, d_tokens_in: u.dTokensIn, d_tokens_out: u.dTokensOut,
     });
@@ -191,7 +215,7 @@ class History {
   agentHistory(agent: string, limit = 200): unknown {
     if (!this.enabled) return { enabled: false };
     const events = this.db!
-      .prepare(`SELECT ts,kind,subtype,session_id sessionId,repo,branch,ticket,tool_name toolName,success,duration_ms durationMs
+      .prepare(`SELECT ts,kind,subtype,provider,client,session_id sessionId,repo,branch,ticket,tool_name toolName,success,duration_ms durationMs
                 FROM events WHERE agent=? ORDER BY ts DESC LIMIT ?`)
       .all(agent, limit);
     const totals = this.db!
@@ -203,7 +227,7 @@ class History {
 
   private prune(): void {
     if (!this.enabled) return;
-    const cutoff = Date.now() - RETENTION_DAYS * 86_400_000;
+    const cutoff = Date.now() - config.retentionDays * 86_400_000;
     this.db!.prepare('DELETE FROM events WHERE ts < ?').run(cutoff);
     this.db!.prepare('DELETE FROM usage WHERE ts < ?').run(cutoff);
     this.db!.prepare('DELETE FROM cumulative WHERE ts < ?').run(cutoff);

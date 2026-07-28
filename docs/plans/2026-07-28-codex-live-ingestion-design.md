@@ -94,4 +94,3 @@ production UI build.
 - manual work classification;
 - individual and team leaderboards;
 - Bitrise and AWS deployment evidence.
-

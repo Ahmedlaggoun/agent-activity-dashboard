@@ -7,25 +7,32 @@ import { SessionDetail } from './components/SessionDetail';
 import { Directory, type Selection } from './components/Directory';
 import { AgentMap } from './components/AgentMap';
 import { Trends } from './components/Trends';
-import type { SessionState } from './types';
+import type { AgentProvider, SessionState } from './types';
 
 type View = 'board' | 'map' | 'trends';
+type ProviderFilter = 'all' | AgentProvider;
 
 export default function App() {
   const { connected, sessions, aggregate, events } = useDashboard();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [view, setView] = useState<View>('board');
+  const [provider, setProvider] = useState<ProviderFilter>('all');
   const [selection, setSelection] = useState<Selection>({ stream: null, agent: null });
+
+  const providerSessions = useMemo(
+    () => sessions.filter((session) => provider === 'all' || session.provider === provider),
+    [provider, sessions],
+  );
 
   // Directory filter applied to whichever view is showing.
   const filtered = useMemo(
     () =>
-      sessions.filter(
+      providerSessions.filter(
         (s) =>
           (!selection.stream || (s.teamId ?? 'unassigned') === selection.stream) &&
           (!selection.agent || (s.agent ?? s.sessionId.slice(0, 8)) === selection.agent),
       ),
-    [sessions, selection],
+    [providerSessions, selection],
   );
 
   const groups = useMemo(() => {
@@ -62,6 +69,17 @@ export default function App() {
               Trends
             </button>
           </div>
+          <div className="provider-switch" aria-label="Filter by AI provider">
+            {(['all', 'claude', 'codex'] as const).map((value) => (
+              <button
+                key={value}
+                className={provider === value ? 'on' : ''}
+                onClick={() => setProvider(value)}
+              >
+                {value === 'all' ? 'All AI' : value === 'claude' ? 'Claude' : 'Codex'}
+              </button>
+            ))}
+          </div>
           <div className={`conn ${connected ? 'on' : 'off'}`}>
             <span className="dot" />
             {connected ? 'Live' : 'Reconnecting…'}
@@ -73,7 +91,7 @@ export default function App() {
       <DoraStrip />
 
       <div className="shell">
-        <Directory sessions={sessions} selection={selection} onSelect={setSelection} />
+        <Directory sessions={providerSessions} selection={selection} onSelect={setSelection} />
 
         <main className="main">
           {(selection.stream || selection.agent) && (

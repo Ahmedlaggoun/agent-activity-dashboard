@@ -22,6 +22,10 @@ export function SessionCard({
           {statusLabel[s.status]}
           {s.status === 'tool' && s.currentTool ? `: ${s.currentTool}` : ''}
         </span>
+        <span className="card-provider" data-provider={s.provider}>
+          {s.provider === 'claude' ? 'Claude' : 'Codex'}
+          {s.client && s.client !== 'unknown' ? ` · ${s.client}` : ''}
+        </span>
         <span className="card-actor">{s.agent ?? s.userEmail ?? s.sessionId.slice(0, 8)}</span>
       </div>
 

@@ -4,6 +4,7 @@ dist/
 *.log
 .DS_Store
 *.tsbuildinfo
+.playwright-cli/
 
 # analytics: local config, frozen datasets, ledger, time log (data, not code)
 analytics/baseline/config.json

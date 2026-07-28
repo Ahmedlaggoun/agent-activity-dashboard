@@ -10,11 +10,16 @@ export type EventKind =
   | 'metric'
   | 'activity';
 
+export type AgentProvider = 'claude' | 'codex';
+export type AgentClient = 'cli' | 'desktop' | 'vscode' | 'unknown';
+
 export interface AgentEvent {
   id: string;
   ts: number;
   kind: EventKind;
   subtype?: string;
+  provider: AgentProvider;
+  client?: AgentClient;
   promptId?: string;
   sessionId?: string;
   userEmail?: string;
@@ -45,6 +50,8 @@ export type SessionStatus = 'idle' | 'thinking' | 'tool';
 
 export interface SessionState {
   sessionId: string;
+  provider: AgentProvider;
+  client?: AgentClient;
   teamId?: string;
   department?: string;
   userEmail?: string;

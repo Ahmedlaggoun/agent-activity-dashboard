@@ -11,6 +11,9 @@ export type EventKind =
   | 'metric' // OTel  metric datapoint (e.g. session.count)
   | 'activity'; // hook   /activity payload
 
+export type AgentProvider = 'claude' | 'codex';
+export type AgentClient = 'cli' | 'desktop' | 'vscode' | 'unknown';
+
 // Lifecycle subtype for hook-sourced ('activity') events.
 export type ActivitySubtype =
   | 'session_start'
@@ -18,7 +21,8 @@ export type ActivitySubtype =
   | 'pre_tool'
   | 'post_tool'
   | 'stop'
-  | 'session_end';
+  | 'session_end'
+  | 'context_update';
 
 /** A normalized, privacy-safe event. Never contains prompt or tool content. */
 export interface AgentEvent {
@@ -26,6 +30,8 @@ export interface AgentEvent {
   ts: number; // epoch ms
   kind: EventKind;
   subtype?: ActivitySubtype;
+  provider: AgentProvider;
+  client?: AgentClient;
 
   // correlation
   promptId?: string;
@@ -74,6 +80,8 @@ export type SessionStatus = 'idle' | 'thinking' | 'tool';
 
 export interface SessionState {
   sessionId: string;
+  provider: AgentProvider;
+  client?: AgentClient;
   teamId?: string;
   department?: string;
   userEmail?: string;

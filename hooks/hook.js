@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Claude Code hook -> Agent Activity Dashboard bridge.
+// Claude Code / Codex hook -> Agent Activity Dashboard bridge.
 //
 // Reads the hook JSON on stdin, adds local git context (repo/branch/ticket),
 // and POSTs a lifecycle event to the dashboard's /activity endpoint.
@@ -56,6 +56,31 @@ function ticketFromBranch(branch) {
   return m ? m[0] : undefined;
 }
 
+function clientName(provider) {
+  const configured = process.env.AAD_CLIENT;
+  if (configured === 'cli' || configured === 'desktop' || configured === 'vscode') return configured;
+  const terminal = (process.env.TERM_PROGRAM ?? '').toLowerCase();
+  if (terminal.includes('vscode')) return 'vscode';
+  return provider === 'codex' ? 'unknown' : 'cli';
+}
+
+// Tool arguments can contain source, prompts, secrets, and shell commands.
+// Reduce the tool identifier itself to a safe activity summary.
+function safeToolSummary(toolName) {
+  if (!toolName || typeof toolName !== 'string') return undefined;
+  if (toolName === 'Bash' || toolName === 'exec_command' || toolName === 'write_stdin') {
+    return 'Terminal command';
+  }
+  if (toolName === 'apply_patch' || toolName === 'Edit' || toolName === 'Write') {
+    return 'File edit';
+  }
+  if (toolName.startsWith('mcp__')) {
+    const integration = toolName.split('__')[1]?.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32);
+    return integration ? `Integration: ${integration}` : 'Integration';
+  }
+  return toolName.replace(/[^a-zA-Z0-9 _.-]/g, '').slice(0, 64) || 'Tool';
+}
+
 async function main() {
   const input = readInput();
   const subtype = process.argv[2] || SUBTYPE_BY_EVENT[input.hook_event_name];
@@ -66,20 +91,30 @@ async function main() {
   const topLevel = git(cwd, ['rev-parse', '--show-toplevel']);
   const repo = topLevel ? topLevel.split('/').pop() : undefined;
   const attrs = parseResourceAttrs();
+  const provider = process.env.AAD_PROVIDER === 'codex' ? 'codex' : 'claude';
 
   const payload = {
     event: subtype,
     session_id: input.session_id,
-    user: process.env.AAD_USER || git(cwd, ['config', 'user.email']) || process.env.USER,
+    // A custom alias is opt-in. Otherwise the server derives a pseudonym from
+    // the session id; never transmit OS usernames or Git email by default.
+    user: process.env.AAD_USER || undefined,
+    provider,
+    client: clientName(provider),
     team_id: attrs['team.id'],
     department: attrs['department'],
     repo,
     branch,
     ticket: ticketFromBranch(branch),
     cwd,
-    // tool_name is present on PreToolUse / PostToolUse — structural, not content.
-    tool_name: input.tool_name,
+    // Only a sanitized tool summary is sent; tool_input is never read.
+    tool_name: safeToolSummary(input.tool_name),
   };
+
+  if (process.env.AAD_DRY_RUN === '1') {
+    process.stdout.write(JSON.stringify(payload));
+    return;
+  }
 
   const headers = { 'content-type': 'application/json' };
   if (process.env.AAD_TOKEN) headers['authorization'] = `Bearer ${process.env.AAD_TOKEN}`;
@@ -94,7 +129,7 @@ async function main() {
       signal: ctrl.signal,
     });
   } catch {
-    /* dashboard down — ignore, never block Claude Code */
+    /* dashboard down — ignore, never block the coding agent */
   } finally {
     clearTimeout(t);
   }

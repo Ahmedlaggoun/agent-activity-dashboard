@@ -1,35 +1,36 @@
 # Agent Activity Dashboard
 
-Real-time, local dashboard showing **what Claude Code agents are doing** during
-the build phase — who launched a prompt, on which ticket, which tool is running,
-and how much it costs.
+Real-time, local Mission Control showing **what Claude Code and Codex agents are
+doing** during the build phase — which provider and client are active, on which
+ticket, which safe tool summary is running, and how much usage it represents.
 
 > Observability of **agents** (quality, security, cost) — not surveillance of people.
 > Prompt content is never logged. Default view is aggregated by stream.
 
-Built for a POC on developer Macs. No database: an in-memory ring buffer,
-restartable and disposable.
+Built for a POC on developer Macs. Live state uses an in-memory ring buffer;
+privacy-safe history is retained in SQLite for 60 rolling days by default.
 
 ---
 
 ## Two data sources
 
-1. **OpenTelemetry (native to Claude Code).** Claude Code is itself an OTLP
-   client — no instrumentation to write. It exports logs + metrics to this
-   server's `/v1/logs` and `/v1/metrics` endpoints. See [`otel-env.sh`](./otel-env.sh).
-2. **Claude Code hooks (local context).** The ticket, branch and live tool
-   status are not in the telemetry. Hook scripts in [`hooks/`](./hooks) POST git
-   context and lifecycle events to `/activity`.
+1. **OpenTelemetry (native to Claude Code and Codex).** Both agents can export
+   structured logs and metrics to `/v1/logs` and `/v1/metrics`.
+2. **Lifecycle hooks (local context).** Ticket, branch, and immediate tool state
+   are posted to `/activity`. Hooks send only structural metadata and sanitized
+   tool summaries.
 
 ## Architecture
 
 ```
 Claude Code ──OTLP http/json──►┐
+Codex ────────OTLP http/json──►│
                                │   server/  (Fastify + TS)
 hooks (SessionStart, …) ──────►┤   ├─ POST /v1/logs      (OTLP ingest)
                                │   ├─ POST /v1/metrics
                                │   ├─ POST /activity     (hooks)
-                               │   ├─ ring buffer (500 events, no DB)
+                               │   ├─ ring buffer (500 live events)
+                               │   ├─ SQLite history (60 days)
                                │   └─ WebSocket /live
                                └──────────────────► ui/  (React + Vite)
 ```
@@ -51,7 +52,8 @@ source ./otel-env.sh
 ```
 
 Then install the hooks (see [`hooks/README.md`](./hooks/README.md)) so the
-dashboard gets ticket/branch context and precise live tool status.
+dashboard gets ticket/branch context and precise live tool status. The same
+guide includes user-level Codex OTel and hook setup.
 
 ## Verifying the pipeline
 
@@ -72,10 +74,12 @@ You should see `claude_code.session.count` at session start and
 
 - **Prompt content is never logged.** `OTEL_LOG_USER_PROMPTS`,
   `OTEL_LOG_TOOL_CONTENT`, `OTEL_LOG_RAW_API_BODIES` are **never** set. The
-  server neither receives nor stores prompt text.
+  server neither receives nor stores prompt text. Codex must keep
+  `otel.log_user_prompt = false`.
+- **Raw commands and tool data are never logged.** Hooks send summaries such as
+  `Terminal command` or `File edit`; they do not send arguments or output.
 - **Default view is aggregated by stream** (`team.id`), not nominative.
-- **Retention:** the POC keeps nothing (ring buffer only). A persistent store,
-  when added, is capped at **30 days**.
+- **Retention:** detailed normalized history is capped at **60 rolling days**.
 - **RH/RGPD:** a tool displaying named developers' activity is a processing of
   employees' personal data → CSE information-consultation and entry in the
   register of processing activities are required **before** any deployment
@@ -85,7 +89,7 @@ You should see `claude_code.session.count` at session start and
 
 | Path | What |
 |---|---|
-| `server/` | Fastify OTLP ingest + ring buffer + WebSocket |
+| `server/` | Fastify OTLP ingest + live store + SQLite history + WebSocket |
 | `ui/` | React + Vite live dashboard |
-| `hooks/` | Claude Code hook scripts (git context + lifecycle) |
+| `hooks/` | Claude Code/Codex hook bridge and setup snippets |
 | `otel-env.sh` | the `CLAUDE_CODE_ENABLE_TELEMETRY` export block |

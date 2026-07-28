@@ -14,6 +14,9 @@ import type { ActivitySubtype, AgentEvent } from './types.js';
 
 const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' }, bodyLimit: 16 * 1024 * 1024 });
 const store = new Store();
+let activitySeq = 0;
+const nextActivityId = (suffix: string) =>
+  `${Date.now().toString(36)}-${(++activitySeq).toString(36)}-${suffix}`;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Append-only cost ledger: joins tokens -> € per ticket, consumed by the
@@ -23,7 +26,16 @@ const DORA_PATH = resolve(__dirname, '../../analytics/baseline/out/latest-dora.j
 if (process.env.COST_LEDGER !== '0') {
   store.on('usage', (rec) => {
     if (!rec.ticket || !rec.dUsd) return; // ledger joins cost -> PR by ticket
-    appendFile(LEDGER_PATH, JSON.stringify({ ts: rec.ts, sessionId: rec.sessionId, ticket: rec.ticket, repo: rec.repo, teamId: rec.teamId, dUsd: rec.dUsd }) + '\n').catch((err) =>
+    appendFile(LEDGER_PATH, JSON.stringify({
+      ts: rec.ts,
+      sessionId: rec.sessionId,
+      provider: rec.provider,
+      client: rec.client,
+      ticket: rec.ticket,
+      repo: rec.repo,
+      teamId: rec.teamId,
+      dUsd: rec.dUsd,
+    }) + '\n').catch((err) =>
       app.log.warn({ err: String(err) }, 'cost-ledger append failed'),
     );
   });
@@ -113,6 +125,8 @@ interface ActivityBody {
   ticket?: string;
   cwd?: string;
   tool_name?: string;
+  provider?: 'claude' | 'codex';
+  client?: 'cli' | 'desktop' | 'vscode' | 'unknown';
 }
 
 app.post('/activity', async (req, reply) => {
@@ -124,9 +138,11 @@ app.post('/activity', async (req, reply) => {
   const branchKey = b.branch?.match(/[A-Z][A-Z0-9]+-\d+/)?.[0];
   const ticket = isTicketKey(b.ticket) ? b.ticket : isTicketKey(branchKey) ? branchKey : undefined;
   const ev: AgentEvent = {
-    id: `${Date.now().toString(36)}-act`,
+    id: nextActivityId('act'),
     ts: Date.now(),
     kind: 'activity',
+    provider: b.provider === 'codex' ? 'codex' : 'claude',
+    client: b.client,
     subtype: b.event,
     sessionId: b.session_id,
     userEmail: b.user,
@@ -146,10 +162,12 @@ app.post('/activity', async (req, reply) => {
     resolveTitle(ticket).then((title) => {
       if (title && title !== ticket) {
         store.ingest({
-          id: `${Date.now().toString(36)}-title`,
+          id: nextActivityId('title'),
           ts: Date.now(),
           kind: 'activity',
-          subtype: b.event, // no-op subtype re-application; enrich only
+          provider: b.provider === 'codex' ? 'codex' : 'claude',
+          client: b.client,
+          subtype: 'context_update',
           sessionId: b.session_id,
           ticket,
           ticketTitle: title,

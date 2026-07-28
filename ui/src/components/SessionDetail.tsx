@@ -62,6 +62,10 @@ export function SessionDetail({
               {session.agent ?? session.userEmail ?? '—'} · {session.teamId ?? 'no stream'}
               {session.ticket ? ` · ${session.ticket}` : ''}
             </div>
+            <div className="drawer-provider">
+              {session.provider === 'claude' ? 'Claude' : 'Codex'}
+              {session.client && session.client !== 'unknown' ? ` · ${session.client}` : ''}
+            </div>
           </div>
           <button className="drawer-close" onClick={onClose} aria-label="Close">
             ✕

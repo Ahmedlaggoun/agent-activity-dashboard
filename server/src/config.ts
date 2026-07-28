@@ -44,6 +44,7 @@ export const config = {
   ringSize: num('RING_SIZE', 500),
   idleMs: num('IDLE_MS', 45_000),
   sessionTtlMs: num('SESSION_TTL_MS', 30 * 60_000),
+  retentionDays: num('RETENTION_DAYS', 60),
   // Pseudonymize identities (default on). Off only for a single-user local run.
   anonymize: bool('ANONYMIZE', true),
   anonymizeSalt: process.env.ANONYMIZE_SALT ?? 'aad-fleet',

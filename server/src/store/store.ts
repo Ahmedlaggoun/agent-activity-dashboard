@@ -15,8 +15,9 @@ function startOfLocalDay(now = Date.now()): number {
 }
 
 /**
- * In-memory store. Holds a bounded ring buffer of recent events and derives
- * per-session state + aggregate counters from them. No persistence.
+ * Live store. Holds a bounded ring buffer of recent events and derives
+ * per-session state + aggregate counters. Privacy-safe history persistence is
+ * subscribed separately in db.ts.
  *
  * Emits:
  *   'event'    (event: AgentEvent)          — one normalized event ingested
@@ -164,6 +165,8 @@ export class Store extends EventEmitter {
           teamId: e.teamId ?? sess?.teamId,
           ticket: sess?.ticket,
           repo: sess?.repo,
+          provider: e.provider,
+          client: e.client ?? sess?.client,
           dUsd: +delta.toFixed(6),
           dTokensIn: 0,
           dTokensOut: 0,
@@ -186,6 +189,8 @@ export class Store extends EventEmitter {
           agent: e.agent ?? sess?.agent,
           teamId: e.teamId ?? sess?.teamId,
           ticket: sess?.ticket,
+          provider: e.provider,
+          client: e.client ?? sess?.client,
           dUsd: 0,
           dTokensIn: dIn,
           dTokensOut: dOut,
@@ -217,6 +222,8 @@ export class Store extends EventEmitter {
     if (!s) {
       s = {
         sessionId: e.sessionId,
+        provider: e.provider,
+        client: e.client,
         status: 'idle',
         turnTokens: 0,
         turnCostUsd: 0,
@@ -229,6 +236,8 @@ export class Store extends EventEmitter {
       this.sessions.set(e.sessionId, s);
     }
     // Enrich identity/context whenever present (last non-empty wins).
+    s.provider = e.provider;
+    if (e.client) s.client = e.client;
     if (e.teamId) s.teamId = e.teamId;
     if (e.department) s.department = e.department;
     if (e.userEmail) s.userEmail = e.userEmail;

@@ -81,7 +81,7 @@ export function AgentMap({
             {c.nodes.map(({ s, x, y }) => (
               <button
                 key={s.sessionId}
-                className={`map-node status-${s.status}`}
+                className={`map-node provider-${s.provider} status-${s.status}`}
                 style={{ left: `${x}%`, top: `${y}%` }}
                 onClick={() => onSelect(s.sessionId)}
                 title={`${s.agent ?? s.sessionId} — ${statusLabel[s.status]}${s.currentTool ? ': ' + s.currentTool : ''}`}
