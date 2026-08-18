@@ -11,7 +11,8 @@ analytics/baseline/config.json
 analytics/baseline/out/*
 !analytics/baseline/out/.gitkeep
 analytics/timelog/timelog.csv
-server/data/*.jsonl
-server/data/*.db
-server/data/*.db-wal
-server/data/*.db-shm
+# Runtime data dir: SQLite history, cost ledger, and the delivery module's
+# encrypted GitHub/Jira credentials (server/data/delivery/secrets.json).
+# Ignore the whole directory - never enumerate extensions here, or a new
+# runtime file silently becomes committable.
+server/data/
