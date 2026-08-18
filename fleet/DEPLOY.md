@@ -93,6 +93,12 @@ stream. Prompt/tool **content is never sent** — only structural telemetry.
 Open `https://agents.example.com/?token=<VIEWER_TOKEN>` once; the token is stored in
 the browser thereafter. Without a valid token, `/api/*` and `/live` return 401.
 
+That `?token=` is a one-time bootstrap on the *page* URL only: the dashboard
+moves it into `localStorage` and strips it from the address bar immediately.
+The token is never appended to an API or WebSocket URL — `/api/*` reads it from
+the `x-aad-token` header and `/live` from the WebSocket subprotocol — so it
+stays out of browser history, referrers and access logs.
+
 ## Notes
 - **Auth is app-enforced**, so even if the port were exposed, ingest/viewer routes
   reject tokenless requests. Keep the two tokens distinct and rotate by editing
