@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiUrl } from '../api/ws';
+import { apiFetch } from '../api/ws';
 import { tokens, usd } from '../format';
 
 interface Day {
@@ -25,7 +25,7 @@ export function Trends() {
 
   useEffect(() => {
     const load = () =>
-      fetch(apiUrl('/api/trends?days=14'))
+      apiFetch('/api/trends?days=14')
         .then((r) => r.json())
         .then(setD)
         .catch(() => setD({ enabled: false, days: [], byStream: [] }));

@@ -39,13 +39,26 @@ interface ActivityBody {
   client?: 'cli' | 'desktop' | 'vscode' | 'unknown';
 }
 
-function presentedToken(req: { headers: Record<string, unknown>; url: string }): string | undefined {
+// Tokens are read from headers only. A token in the query string ends up in
+// browser history, referrers, screenshots, proxy and access logs, so `?token=`
+// is deliberately NOT accepted. Browsers cannot set headers on a WebSocket
+// handshake, so /live carries it in the Sec-WebSocket-Protocol header instead.
+export const WS_TOKEN_PROTOCOL_PREFIX = 'aad-token.';
+
+export function presentedToken(req: { headers: Record<string, unknown> }): string | undefined {
   const auth = req.headers.authorization;
   if (typeof auth === 'string' && auth.startsWith('Bearer ')) return auth.slice(7);
   const hdr = req.headers['x-aad-token'];
   if (typeof hdr === 'string') return hdr;
-  const q = req.url.split('?')[1];
-  if (q) return new URLSearchParams(q).get('token') ?? undefined;
+  const proto = req.headers['sec-websocket-protocol'];
+  if (typeof proto === 'string') {
+    for (const entry of proto.split(',')) {
+      const value = entry.trim();
+      if (value.startsWith(WS_TOKEN_PROTOCOL_PREFIX)) {
+        return decodeURIComponent(value.slice(WS_TOKEN_PROTOCOL_PREFIX.length));
+      }
+    }
+  }
   return undefined;
 }
 
@@ -159,7 +172,16 @@ export async function buildApp(options: { deliveryService?: DeliveryService } = 
     },
   );
 
-  await app.register(websocket);
+  // `ws` must echo one of the client's offered subprotocols; without this the
+  // browser closes the connection immediately after a successful handshake.
+  await app.register(websocket, {
+    options: {
+      handleProtocols: (protocols: Set<string>) => {
+        for (const p of protocols) if (p.startsWith(WS_TOKEN_PROTOCOL_PREFIX)) return p;
+        return false;
+      },
+    },
+  });
   registerWebSocket(app, store);
 
   app.post('/v1/logs', async (req, reply) => {

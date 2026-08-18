@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiUrl } from '../api/ws';
+import { apiFetch } from '../api/ws';
 import { DORA_REFRESH_EVENT } from './DeliveryDataPanel';
 
 interface Dora {
@@ -32,7 +32,7 @@ export function DoraStrip({ onOpenDeliveryData }: { onOpenDeliveryData: () => vo
 
   useEffect(() => {
     const load = () =>
-      fetch(apiUrl('/api/dora'))
+      apiFetch('/api/dora')
         .then((r) => (r.ok ? r.json() : Promise.reject()))
         .then((payload) => {
           setD(payload);

@@ -6,17 +6,48 @@ const SERVER_URL = configuredServerUrl || (import.meta.env.DEV ? 'http://localho
 
 // Viewer token (for a TLS+auth cloud deploy): pass ?token=… once; it's kept in
 // localStorage thereafter. Empty for open localhost dev.
+//
+// The token is never sent in a URL — that would leak it into browser history,
+// referrers and server access logs. REST calls use the x-aad-token header, and
+// /live uses the WebSocket subprotocol (browsers cannot set handshake headers).
+// The bootstrap ?token= is stripped from the address bar as soon as it is read.
+const WS_TOKEN_PROTOCOL_PREFIX = 'aad-token.';
 const urlToken = new URLSearchParams(location.search).get('token');
-if (urlToken) localStorage.setItem('aad_token', urlToken);
+if (urlToken) {
+  localStorage.setItem('aad_token', urlToken);
+  const clean = new URL(location.href);
+  clean.searchParams.delete('token');
+  history.replaceState(null, '', clean.toString());
+}
 const viewerToken = urlToken ?? localStorage.getItem('aad_token') ?? '';
-const tokenQ = viewerToken ? `?token=${encodeURIComponent(viewerToken)}` : '';
 
-/** Build an authenticated URL to the server for REST fetches. */
-export function apiUrl(path: string): string {
-  return SERVER_URL + path + tokenQ;
+/** Headers carrying the viewer token for REST fetches. */
+export function authHeaders(): Record<string, string> {
+  return viewerToken ? { 'x-aad-token': viewerToken } : {};
 }
 
-const WS_URL = SERVER_URL.replace(/^http/, 'ws') + '/live' + tokenQ;
+/** Build a URL to the server for REST fetches. Pair it with authHeaders(). */
+export function apiUrl(path: string): string {
+  return SERVER_URL + path;
+}
+
+/**
+ * fetch() against the server with the viewer token attached as a header.
+ * Always use this instead of bare fetch(apiUrl(...)) so no call site can
+ * forget the token and silently 401 on an authenticated deployment.
+ */
+export function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(apiUrl(path), {
+    ...init,
+    headers: { ...authHeaders(), ...(init.headers ?? {}) },
+  });
+}
+
+const WS_URL = SERVER_URL.replace(/^http/, 'ws') + '/live';
+// Subprotocol values are RFC6455 tokens, so the value is percent-encoded.
+const WS_PROTOCOLS = viewerToken
+  ? [WS_TOKEN_PROTOCOL_PREFIX + encodeURIComponent(viewerToken)]
+  : undefined;
 
 const MAX_EVENTS = 300;
 
@@ -40,7 +71,7 @@ export function useDashboard(): DashboardState {
     let closed = false;
 
     const connect = () => {
-      const ws = new WebSocket(WS_URL);
+      const ws = new WebSocket(WS_URL, WS_PROTOCOLS);
       wsRef.current = ws;
 
       ws.onopen = () => setConnected(true);

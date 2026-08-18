@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { ago, duration } from '../format';
-import { apiUrl } from '../api/ws';
+import { apiFetch } from '../api/ws';
 
 export const DORA_REFRESH_EVENT = 'aad:dora-refresh';
 
@@ -203,7 +203,7 @@ async function readJson<T>(response: Response): Promise<T | null> {
 }
 
 async function fetchStatus() {
-  const response = await fetch(apiUrl('/api/delivery'));
+  const response = await apiFetch('/api/delivery');
   const payload = (await readJson<Record<string, unknown>>(response)) ?? {};
   if (!response.ok) throw new Error(extractMessage(payload, 'Unable to load delivery status.'));
   const settings = (payload.settings ?? {}) as DeliverySettingsSummary;
@@ -217,7 +217,7 @@ async function fetchStatus() {
 }
 
 async function fetchImports() {
-  const response = await fetch(apiUrl('/api/delivery/imports'));
+  const response = await apiFetch('/api/delivery/imports');
   const payload = await readJson<Record<string, unknown> | DeliveryJob[]>(response);
   if (!response.ok) throw new Error(extractMessage(payload, 'Unable to load delivery history.'));
   if (Array.isArray(payload)) return payload as DeliveryJob[];
@@ -399,7 +399,7 @@ export function DeliveryDataPanel({ open, onClose }: DeliveryDataPanelProps) {
     setTesting(true);
     setNotice({ tone: 'info', message: 'Testing GitHub and Jira connections…' });
     try {
-      const response = await fetch(apiUrl('/api/delivery/test'), {
+      const response = await apiFetch('/api/delivery/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settingsPayload(form)),
@@ -439,7 +439,7 @@ export function DeliveryDataPanel({ open, onClose }: DeliveryDataPanelProps) {
     setSaving(true);
     setNotice({ tone: 'info', message: 'Saving encrypted delivery settings…' });
     try {
-      const response = await fetch(apiUrl('/api/delivery/settings'), {
+      const response = await apiFetch('/api/delivery/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settingsPayload(form)),
@@ -473,7 +473,7 @@ export function DeliveryDataPanel({ open, onClose }: DeliveryDataPanelProps) {
     setDeleting(true);
     setNotice({ tone: 'info', message: 'Removing saved delivery settings…' });
     try {
-      const response = await fetch(apiUrl('/api/delivery/settings'), { method: 'DELETE' });
+      const response = await apiFetch('/api/delivery/settings', { method: 'DELETE' });
       const payload = (await readJson<Record<string, unknown>>(response)) ?? {};
       if (!response.ok) throw new Error(extractMessage(payload, 'Unable to delete saved settings.'));
       setForm(EMPTY_FORM);
@@ -521,7 +521,7 @@ export function DeliveryDataPanel({ open, onClose }: DeliveryDataPanelProps) {
     setStarting(true);
     setNotice({ tone: 'info', message: 'Starting delivery import…' });
     try {
-      const response = await fetch(apiUrl('/api/delivery/imports'), {
+      const response = await apiFetch('/api/delivery/imports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ startDate: form.startDate }),
